@@ -1,0 +1,19 @@
+{
+  "name": "sayush-kamat-portfolio",
+  "version": "1.0.0",
+  "description": "Interactive 3D motorcycle portfolio website for Sayush Kamat",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "@dimforge/rapier3d-compat": "^0.12.0",
+    "howler": "^2.2.4"
+  },
+  "devDependencies": {
+    "vite": "^5.0.8"
+  }
+}
