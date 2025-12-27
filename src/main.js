@@ -6,6 +6,9 @@ import { Environment } from './js/Environment.js';
 import { UI } from './js/UI.js';
 import { Audio } from './js/Audio.js';
 import { NPCManager } from './js/NPCManager.js';
+import { CityRoadNetwork } from './js/CityRoadNetwork.js';
+import { TrafficManager } from './js/TrafficManager.js';
+import { CheatCodeManager } from './js/CheatCodeManager.js';
 
 class App {
     constructor() {
@@ -55,21 +58,24 @@ class App {
 
         if (this.isNightMode) {
             this.scene.background = new THREE.Color(0x111133);
-            this.scene.fog = new THREE.Fog(0x111133, 100, 400);
+            this.scene.fog = new THREE.Fog(0x111133, 100, 500);
             this.renderer.toneMappingExposure = 2.5;
         } else {
             this.scene.background = new THREE.Color(0x87ceeb);
-            this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+            this.scene.fog = new THREE.Fog(0x87ceeb, 100, 400);
         }
 
-        // Setup camera
+        // Setup camera - position behind and above where motorcycle will spawn at (0, 0, 30)
         this.camera = new THREE.PerspectiveCamera(
             60,
             window.innerWidth / window.innerHeight,
             0.1,
-            500
+            1000
         );
-        this.camera.position.set(0, 5, 10);
+        // Initial position: behind motorcycle at (0,0,30) facing +Z
+        this.camera.position.set(0, 4, 22);
+        this.camera.lookAt(0, 1, 30);
+        this.cameraInitialized = false;
 
         this.updateLoading(30, 'Loading physics...');
 
@@ -77,37 +83,61 @@ class App {
         this.world = new World();
         await this.world.init();
 
+        this.updateLoading(40, 'Building city roads...');
+
+        // Create city road network
+        this.roadNetwork = new CityRoadNetwork();
+
         this.updateLoading(50, 'Creating environment...');
 
-        // Create environment
+        // Create environment with road network
         this.environment = new Environment(this.scene, this.world, this.isNightMode);
-        await this.environment.create();
+        await this.environment.create(this.roadNetwork);
+
+        this.updateLoading(55, 'Setting up traffic...');
+
+        // Create traffic manager
+        this.trafficManager = new TrafficManager(this.scene, this.roadNetwork, this.isNightMode);
+        this.trafficManager.createTrafficLights();
 
         this.updateLoading(60, 'Adding NPCs...');
 
-        // Create NPCs
-        this.npcManager = new NPCManager(this.scene, this.isNightMode);
+        // Create NPCs with road network and traffic manager
+        this.npcManager = new NPCManager(this.scene, this.isNightMode, this.roadNetwork, this.trafficManager);
         this.npcManager.create();
 
         this.updateLoading(70, 'Building motorcycle...');
+
+        // Note: setPlayerVehicle() will be called after motorcycle is created
 
         // Create motorcycle
         this.motorcycle = new Motorcycle(this.scene, this.world, this.isNightMode);
         await this.motorcycle.create();
 
-        // Register obstacles with motorcycle for collision detection
+        // Set active vehicle (can be motorcycle or car after cheat)
+        this.activeVehicle = this.motorcycle;
+
+        // Set player vehicle reference for pedestrian collision detection
+        this.npcManager.setPlayerVehicle(this.activeVehicle);
+
+        // Register obstacles with vehicle for collision detection
         const obstacles = this.environment.getObstacles();
         obstacles.forEach(obs => {
-            this.motorcycle.addObstacle(obs.x, obs.z, obs.width, obs.depth);
+            this.activeVehicle.addObstacle(obs.x, obs.z, obs.width, obs.depth);
         });
 
         this.updateLoading(85, 'Setting up controls...');
 
         // Setup controls
-        this.controls = new Controls(this.motorcycle);
+        this.controls = new Controls(this.activeVehicle);
 
         // Setup UI
         this.ui = new UI(this);
+
+        this.updateLoading(90, 'Initializing cheat codes...');
+
+        // Setup cheat code manager
+        this.cheatManager = new CheatCodeManager(this);
 
         this.updateLoading(95, 'Loading audio...');
 
@@ -153,52 +183,67 @@ class App {
         // Update physics
         this.world.update(delta);
 
+        // Update traffic lights
+        this.trafficManager.update(delta);
+
         // Get input
         const input = this.controls.getInput();
 
-        // Update motorcycle
-        this.motorcycle.update(delta, input);
+        // Update active vehicle (motorcycle or car)
+        this.activeVehicle.update(delta, input);
 
         // Update engine sound
-        this.audio.updateEngine(this.motorcycle.getSpeed(), input.forward);
+        this.audio.updateEngine(this.activeVehicle.getSpeed(), input.forward);
 
         // Update NPCs
         this.npcManager.update(delta);
 
-        // Update camera to follow motorcycle
+        // Update camera to follow active vehicle
         this.updateCamera(delta);
 
         // Update UI
-        this.ui.update(this.motorcycle);
+        this.ui.update(this.activeVehicle);
 
         // Render
         this.renderer.render(this.scene, this.camera);
     }
 
     updateCamera(delta) {
-        const motorcyclePosition = this.motorcycle.getPosition();
-        const motorcycleRotation = this.motorcycle.getRotation();
-        const speed = this.motorcycle.getSpeed();
+        const vehiclePosition = this.activeVehicle.getPosition();
+        const vehicleRotation = this.activeVehicle.getRotation();
+        const speed = this.activeVehicle.getSpeed();
+
+        // Adjust camera based on vehicle type
+        const isCar = this.activeVehicle.getType() === 'car';
+        const baseDistance = isCar ? 12 : 8;
+        const baseHeight = isCar ? 4 : 3;
 
         // Camera offset based on speed
-        const distance = 8 + Math.abs(speed) * 0.05;
-        const height = 4 + Math.abs(speed) * 0.02;
+        const distance = baseDistance + Math.abs(speed) * 0.05;
+        const height = baseHeight + Math.abs(speed) * 0.02;
 
         // Calculate target camera position
-        const targetX = motorcyclePosition.x - Math.sin(motorcycleRotation) * distance;
-        const targetY = motorcyclePosition.y + height;
-        const targetZ = motorcyclePosition.z - Math.cos(motorcycleRotation) * distance;
+        const targetX = vehiclePosition.x - Math.sin(vehicleRotation) * distance;
+        const targetY = vehiclePosition.y + height;
+        const targetZ = vehiclePosition.z - Math.cos(vehicleRotation) * distance;
 
-        // Smooth camera follow
-        this.camera.position.x += (targetX - this.camera.position.x) * delta * 5;
-        this.camera.position.y += (targetY - this.camera.position.y) * delta * 5;
-        this.camera.position.z += (targetZ - this.camera.position.z) * delta * 5;
+        // Snap camera on first frame, then smooth follow
+        if (!this.cameraInitialized) {
+            this.camera.position.set(targetX, targetY, targetZ);
+            this.cameraInitialized = true;
+        } else {
+            // Smooth camera follow
+            this.camera.position.x += (targetX - this.camera.position.x) * delta * 5;
+            this.camera.position.y += (targetY - this.camera.position.y) * delta * 5;
+            this.camera.position.z += (targetZ - this.camera.position.z) * delta * 5;
+        }
 
-        // Camera look at motorcycle
+        // Camera look at vehicle (look slightly down towards ground)
+        const lookAtHeight = isCar ? 1.0 : 0.5;
         const lookAtTarget = new THREE.Vector3(
-            motorcyclePosition.x,
-            motorcyclePosition.y + 1,
-            motorcyclePosition.z
+            vehiclePosition.x,
+            lookAtHeight,
+            vehiclePosition.z
         );
 
         // Add camera shake based on speed

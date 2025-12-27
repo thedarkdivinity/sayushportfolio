@@ -11,5 +11,6 @@ export default defineConfig({
     },
     optimizeDeps: {
         include: ['three', '@dimforge/rapier3d-compat']
-    }
+    },
+    base: "/sayushportfolio/"
 });

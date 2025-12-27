@@ -6,13 +6,22 @@ export class Environment {
         this.world = world;
         this.isNightMode = isNightMode;
         this.obstacles = []; // Store obstacles for collision detection
+        this.roadNetwork = null;
     }
 
-    async create() {
+    async create(roadNetwork = null) {
+        this.roadNetwork = roadNetwork;
         this.createLighting();
         this.createGround();
-        this.createRoad();
-        this.createBuildings();
+
+        if (roadNetwork) {
+            this.createCityRoads(roadNetwork);
+            this.createCityBuildings(roadNetwork);
+        } else {
+            this.createRoad();
+            this.createBuildings();
+        }
+
         this.createTrees();
         this.createDecorations();
         this.createSkybox();
@@ -152,6 +161,340 @@ export class Environment {
         crossRoad.position.set(0, 0.01, 0);
         crossRoad.receiveShadow = true;
         this.scene.add(crossRoad);
+    }
+
+    createCityRoads(roadNetwork) {
+        const roadMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+
+        const lineMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.5
+        });
+
+        const yellowLineMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffcc00,
+            roughness: 0.5
+        });
+
+        const sidewalkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x808080,
+            roughness: 0.9,
+            metalness: 0
+        });
+
+        // Create road segments
+        roadNetwork.getSegments().forEach(segment => {
+            if (segment.isCurved && segment.curveRadius) {
+                // Curved road (highway loop)
+                this.createCurvedRoadSegment(segment, roadMaterial, lineMaterial);
+            } else if (segment.isCurved && segment.curveType === 'bezier') {
+                // Bezier curved connector
+                this.createBezierRoad(segment, roadMaterial);
+            } else {
+                // Straight road
+                this.createStraightRoadSegment(segment, roadMaterial, lineMaterial, yellowLineMaterial);
+            }
+        });
+
+        // Create intersections with crosswalks
+        roadNetwork.getIntersections().forEach(intersection => {
+            this.createIntersection(intersection, roadMaterial, lineMaterial);
+        });
+
+        // Create sidewalks along main roads
+        this.createSidewalks(roadNetwork, sidewalkMaterial);
+    }
+
+    createStraightRoadSegment(segment, roadMaterial, lineMaterial, yellowLineMaterial) {
+        const dx = segment.end.x - segment.start.x;
+        const dz = segment.end.z - segment.start.z;
+        const length = Math.sqrt(dx * dx + dz * dz);
+        const angle = Math.atan2(dx, dz);
+
+        const centerX = (segment.start.x + segment.end.x) / 2;
+        const centerZ = (segment.start.z + segment.end.z) / 2;
+
+        // Road surface
+        const roadGeometry = new THREE.PlaneGeometry(segment.width, length);
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.rotation.z = -angle;
+        road.position.set(centerX, 0.01, centerZ);
+        road.receiveShadow = true;
+        this.scene.add(road);
+
+        // Center line (dashed white for multi-lane, solid yellow for 2-lane)
+        if (segment.lanes >= 4) {
+            // Dashed center line
+            const dashLength = 3;
+            const gapLength = 2;
+            const numDashes = Math.floor(length / (dashLength + gapLength));
+
+            for (let i = 0; i < numDashes; i++) {
+                const t = (i * (dashLength + gapLength) + dashLength / 2) / length;
+                const dashX = segment.start.x + dx * t;
+                const dashZ = segment.start.z + dz * t;
+
+                const dashGeometry = new THREE.PlaneGeometry(0.15, dashLength);
+                const dash = new THREE.Mesh(dashGeometry, lineMaterial);
+                dash.rotation.x = -Math.PI / 2;
+                dash.rotation.z = -angle;
+                dash.position.set(dashX, 0.02, dashZ);
+                this.scene.add(dash);
+            }
+        } else {
+            // Solid yellow center line
+            const lineGeometry = new THREE.PlaneGeometry(0.15, length);
+            const line = new THREE.Mesh(lineGeometry, yellowLineMaterial);
+            line.rotation.x = -Math.PI / 2;
+            line.rotation.z = -angle;
+            line.position.set(centerX, 0.02, centerZ);
+            this.scene.add(line);
+        }
+
+        // Edge lines (solid white)
+        const perpX = -dz / length;
+        const perpZ = dx / length;
+        const edgeOffset = segment.width / 2 - 0.3;
+
+        [-1, 1].forEach(side => {
+            const edgeGeometry = new THREE.PlaneGeometry(0.1, length);
+            const edge = new THREE.Mesh(edgeGeometry, lineMaterial);
+            edge.rotation.x = -Math.PI / 2;
+            edge.rotation.z = -angle;
+            edge.position.set(
+                centerX + perpX * edgeOffset * side,
+                0.02,
+                centerZ + perpZ * edgeOffset * side
+            );
+            this.scene.add(edge);
+        });
+    }
+
+    createCurvedRoadSegment(segment, roadMaterial, lineMaterial) {
+        // Create arc segment for highway loop
+        const arcAngle = segment.curveEndAngle - segment.curveStartAngle;
+        const innerRadius = segment.curveRadius - segment.width / 2;
+        const outerRadius = segment.curveRadius + segment.width / 2;
+
+        // Road surface
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, outerRadius, segment.curveStartAngle, segment.curveEndAngle, false);
+        shape.lineTo(
+            Math.cos(segment.curveEndAngle) * innerRadius,
+            Math.sin(segment.curveEndAngle) * innerRadius
+        );
+        shape.absarc(0, 0, innerRadius, segment.curveEndAngle, segment.curveStartAngle, true);
+        shape.closePath();
+
+        const roadGeometry = new THREE.ShapeGeometry(shape, 32);
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.y = 0.01;
+        road.receiveShadow = true;
+        this.scene.add(road);
+
+        // Center line
+        const centerLineGeometry = new THREE.RingGeometry(
+            segment.curveRadius - 0.1,
+            segment.curveRadius + 0.1,
+            32,
+            1,
+            segment.curveStartAngle,
+            arcAngle
+        );
+        const centerLine = new THREE.Mesh(centerLineGeometry, lineMaterial);
+        centerLine.rotation.x = -Math.PI / 2;
+        centerLine.position.y = 0.02;
+        this.scene.add(centerLine);
+    }
+
+    createBezierRoad(segment, roadMaterial) {
+        const curve = new THREE.QuadraticBezierCurve3(
+            new THREE.Vector3(segment.start.x, 0, segment.start.z),
+            new THREE.Vector3(segment.controlPoint.x, 0, segment.controlPoint.z),
+            new THREE.Vector3(segment.end.x, 0, segment.end.z)
+        );
+
+        const points = curve.getPoints(20);
+
+        // Create road segments along curve
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+
+            const dx = p2.x - p1.x;
+            const dz = p2.z - p1.z;
+            const length = Math.sqrt(dx * dx + dz * dz);
+            const angle = Math.atan2(dx, dz);
+
+            const roadGeometry = new THREE.PlaneGeometry(segment.width, length * 1.1);
+            const road = new THREE.Mesh(roadGeometry, roadMaterial);
+            road.rotation.x = -Math.PI / 2;
+            road.rotation.z = -angle;
+            road.position.set((p1.x + p2.x) / 2, 0.01, (p1.z + p2.z) / 2);
+            road.receiveShadow = true;
+            this.scene.add(road);
+        }
+    }
+
+    createIntersection(intersection, roadMaterial, lineMaterial) {
+        const size = intersection.size + 4;
+
+        // Intersection base
+        const intersectionGeometry = new THREE.PlaneGeometry(size, size);
+        const intersectionMesh = new THREE.Mesh(intersectionGeometry, roadMaterial);
+        intersectionMesh.rotation.x = -Math.PI / 2;
+        intersectionMesh.position.set(intersection.position.x, 0.015, intersection.position.z);
+        intersectionMesh.receiveShadow = true;
+        this.scene.add(intersectionMesh);
+
+        // Crosswalks (white stripes)
+        if (intersection.hasTrafficLight) {
+            this.createCrosswalk(intersection.position.x, intersection.position.z - size / 2 + 1, 0);
+            this.createCrosswalk(intersection.position.x, intersection.position.z + size / 2 - 1, 0);
+            this.createCrosswalk(intersection.position.x - size / 2 + 1, intersection.position.z, Math.PI / 2);
+            this.createCrosswalk(intersection.position.x + size / 2 - 1, intersection.position.z, Math.PI / 2);
+        }
+    }
+
+    createCrosswalk(x, z, rotation) {
+        const stripeMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.5
+        });
+
+        // Create stripe pattern
+        for (let i = 0; i < 6; i++) {
+            const stripeGeometry = new THREE.PlaneGeometry(0.5, 3);
+            const stripe = new THREE.Mesh(stripeGeometry, stripeMaterial);
+            stripe.rotation.x = -Math.PI / 2;
+            stripe.rotation.z = rotation;
+
+            const offset = (i - 2.5) * 0.8;
+            if (rotation === 0) {
+                stripe.position.set(x + offset, 0.025, z);
+            } else {
+                stripe.position.set(x, 0.025, z + offset);
+            }
+
+            this.scene.add(stripe);
+        }
+    }
+
+    createSidewalks(roadNetwork, sidewalkMaterial) {
+        // Create sidewalks along main roads
+        roadNetwork.getSegments().forEach(segment => {
+            if (segment.type !== 'main' && segment.type !== 'side') return;
+            if (segment.isCurved) return;
+
+            const dx = segment.end.x - segment.start.x;
+            const dz = segment.end.z - segment.start.z;
+            const length = Math.sqrt(dx * dx + dz * dz);
+            const angle = Math.atan2(dx, dz);
+
+            const perpX = -dz / length;
+            const perpZ = dx / length;
+
+            const sidewalkWidth = 2;
+            const sidewalkHeight = 0.15;
+            const offset = segment.width / 2 + sidewalkWidth / 2 + 0.5;
+
+            [-1, 1].forEach(side => {
+                const sidewalkGeometry = new THREE.BoxGeometry(sidewalkWidth, sidewalkHeight, length);
+                const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+
+                const centerX = (segment.start.x + segment.end.x) / 2 + perpX * offset * side;
+                const centerZ = (segment.start.z + segment.end.z) / 2 + perpZ * offset * side;
+
+                sidewalk.rotation.y = angle;
+                sidewalk.position.set(centerX, sidewalkHeight / 2, centerZ);
+                sidewalk.receiveShadow = true;
+                sidewalk.castShadow = true;
+                this.scene.add(sidewalk);
+            });
+        });
+    }
+
+    createCityBuildings(roadNetwork) {
+        const buildingColors = [0xff6b35, 0x4ecdc4, 0xffe66d, 0x95e1d3, 0xf38181, 0x6c5ce7, 0x00b894];
+
+        // Get building zones from road network
+        const zones = roadNetwork.getBuildingZones();
+
+        zones.forEach((zone, zoneIndex) => {
+            // Create 2-4 buildings per zone
+            const numBuildings = 2 + Math.floor(Math.random() * 3);
+
+            for (let i = 0; i < numBuildings; i++) {
+                const offsetX = (Math.random() - 0.5) * zone.size * 0.6;
+                const offsetZ = (Math.random() - 0.5) * zone.size * 0.6;
+
+                const x = zone.center.x + offsetX;
+                const z = zone.center.z + offsetZ;
+
+                // Skip if too close to road
+                if (roadNetwork.isOnRoad(x, z)) continue;
+
+                const width = 8 + Math.random() * 6;
+                const depth = 8 + Math.random() * 6;
+                const height = 15 + Math.random() * 25;
+
+                const buildingMaterial = new THREE.MeshStandardMaterial({
+                    color: buildingColors[(zoneIndex + i) % buildingColors.length],
+                    roughness: 0.7,
+                    metalness: 0.1
+                });
+
+                const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+                const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                building.position.set(x, height / 2, z);
+                building.castShadow = true;
+                building.receiveShadow = true;
+                this.scene.add(building);
+
+                // Store obstacle
+                this.obstacles.push({ x, z, width: width + 2, depth: depth + 2 });
+
+                // Add windows
+                this.addWindows(building, width, height, depth);
+            }
+        });
+
+        // Add some landmark buildings at specific locations
+        this.createLandmarkBuildings();
+    }
+
+    createLandmarkBuildings() {
+        const landmarks = [
+            { x: 0, z: 0, width: 15, depth: 15, height: 40, color: 0x3498db }, // Central tower
+            { x: 100, z: 100, width: 12, depth: 12, height: 35, color: 0xe74c3c },
+            { x: -100, z: 100, width: 12, depth: 12, height: 30, color: 0x2ecc71 },
+            { x: 100, z: -100, width: 12, depth: 12, height: 32, color: 0x9b59b6 },
+            { x: -100, z: -100, width: 12, depth: 12, height: 28, color: 0xf39c12 }
+        ];
+
+        landmarks.forEach(lm => {
+            const material = new THREE.MeshStandardMaterial({
+                color: lm.color,
+                roughness: 0.5,
+                metalness: 0.3
+            });
+
+            const geometry = new THREE.BoxGeometry(lm.width, lm.height, lm.depth);
+            const building = new THREE.Mesh(geometry, material);
+            building.position.set(lm.x, lm.height / 2, lm.z);
+            building.castShadow = true;
+            building.receiveShadow = true;
+            this.scene.add(building);
+
+            this.obstacles.push({ x: lm.x, z: lm.z, width: lm.width + 2, depth: lm.depth + 2 });
+            this.addWindows(building, lm.width, lm.height, lm.depth);
+        });
     }
 
     createBuildings() {

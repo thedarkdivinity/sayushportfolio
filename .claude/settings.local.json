@@ -5,7 +5,10 @@
       "Bash(npm install)",
       "Bash(npm run dev:*)",
       "WebFetch(domain:cdn.bikedekho.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(cat:*)"
     ]
   }
 }

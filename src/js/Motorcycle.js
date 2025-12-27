@@ -1,34 +1,26 @@
 import * as THREE from 'three';
+import { PlayerVehicle } from './PlayerVehicle.js';
 
-export class Motorcycle {
+export class Motorcycle extends PlayerVehicle {
     constructor(scene, world, isNightMode = false) {
-        this.scene = scene;
-        this.world = world;
-        this.isNightMode = isNightMode;
+        super(scene, world, isNightMode);
 
-        this.mesh = null;
         this.body = null;
-
         this.frontWheel = null;
         this.rearWheel = null;
 
-        this.speed = 0;
+        // Motorcycle-specific physics
         this.maxSpeed = 80;
         this.acceleration = 35;
         this.brakeForce = 50;
         this.turnSpeed = 2.5;
         this.friction = 0.98;
+        this.collisionRadius = 0.8;
 
+        // Motorcycle-specific properties
         this.wheelRotation = 0;
         this.steerAngle = 0;
         this.leanAngle = 0;
-
-        // Start on the ground
-        this.position = new THREE.Vector3(0, 0, 5);
-        this.rotation = 0;
-
-        // Store obstacles for collision checking
-        this.obstacles = [];
     }
 
     async create() {
@@ -361,6 +353,7 @@ export class Motorcycle {
 
         // Add to scene
         this.mesh.position.copy(this.position);
+        this.mesh.position.y = 0; // Ensure on ground
         this.scene.add(this.mesh);
     }
 
@@ -552,26 +545,6 @@ export class Motorcycle {
         this.mesh.add(this.rider);
     }
 
-    // Register obstacles for collision detection
-    addObstacle(x, z, width, depth) {
-        this.obstacles.push({ x, z, width, depth });
-    }
-
-    // Check collision with obstacles
-    checkCollisions(newX, newZ) {
-        const bikeRadius = 0.8;
-
-        for (const obs of this.obstacles) {
-            const halfWidth = obs.width / 2 + bikeRadius;
-            const halfDepth = obs.depth / 2 + bikeRadius;
-
-            if (Math.abs(newX - obs.x) < halfWidth && Math.abs(newZ - obs.z) < halfDepth) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     update(delta, input) {
         const { forward, backward, left, right, brake } = input;
 
@@ -651,27 +624,14 @@ export class Motorcycle {
         this.frontWheelGroup.rotation.y = this.steerAngle;
     }
 
-    getPosition() {
-        return this.position;
-    }
-
-    getRotation() {
-        return this.rotation;
-    }
-
-    getSpeed() {
-        return this.speed;
-    }
-
-    isMoving() {
-        return Math.abs(this.speed) > 1;
-    }
-
     reset() {
-        this.position.set(0, 0, 5);
-        this.rotation = 0;
-        this.speed = 0;
+        super.reset();
         this.leanAngle = 0;
         this.steerAngle = 0;
+        this.wheelRotation = 0;
+    }
+
+    getType() {
+        return 'motorcycle';
     }
 }

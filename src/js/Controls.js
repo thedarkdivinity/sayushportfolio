@@ -1,6 +1,6 @@
 export class Controls {
-    constructor(motorcycle) {
-        this.motorcycle = motorcycle;
+    constructor(vehicle) {
+        this.vehicle = vehicle;
 
         this.keys = {
             forward: false,
@@ -38,25 +38,30 @@ export class Controls {
         switch (e.code) {
             case 'KeyW':
             case 'ArrowUp':
+                e.preventDefault();
                 this.keys.forward = true;
                 break;
             case 'KeyS':
             case 'ArrowDown':
+                e.preventDefault();
                 this.keys.backward = true;
                 break;
             case 'KeyA':
             case 'ArrowLeft':
+                e.preventDefault();
                 this.keys.left = true;
                 break;
             case 'KeyD':
             case 'ArrowRight':
+                e.preventDefault();
                 this.keys.right = true;
                 break;
             case 'Space':
+                e.preventDefault();
                 this.keys.brake = true;
                 break;
             case 'KeyR':
-                this.motorcycle.reset();
+                this.vehicle.reset();
                 break;
         }
     }
@@ -212,5 +217,9 @@ export class Controls {
             right,
             brake: this.keys.brake
         };
+    }
+
+    setVehicle(vehicle) {
+        this.vehicle = vehicle;
     }
 }

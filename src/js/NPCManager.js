@@ -1,211 +1,84 @@
 import * as THREE from 'three';
+import { NPCVehicle } from './NPCVehicle.js';
 
 export class NPCManager {
-    constructor(scene, isNightMode) {
+    constructor(scene, isNightMode, roadNetwork = null, trafficManager = null) {
         this.scene = scene;
         this.isNightMode = isNightMode;
+        this.roadNetwork = roadNetwork;
+        this.trafficManager = trafficManager;
         this.npcs = [];
-        this.cars = [];
+        this.vehicles = [];
         this.pedestrians = [];
-        this.carCollisionRadius = 2.5; // For collision detection between cars
+        this.playerVehicle = null; // Reference to player vehicle for collision detection
+    }
+
+    setPlayerVehicle(vehicle) {
+        this.playerVehicle = vehicle;
     }
 
     create() {
-        // Create NPC cars on the roads
-        this.createCars();
+        // Create NPC vehicles on the roads
+        this.createVehicles();
 
         // Create detailed pedestrians near buildings
         this.createDetailedPedestrians();
     }
 
-    createCars() {
-        const carColors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0x1abc9c];
+    createVehicles() {
+        // Number of NPC vehicles based on city size
+        const numVehicles = this.roadNetwork ? 15 : 6;
 
-        // Cars on the circular road
-        const numCars = 6;
-        for (let i = 0; i < numCars; i++) {
-            const angle = (i / numCars) * Math.PI * 2;
-            const radius = 40;
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
+        for (let i = 0; i < numVehicles; i++) {
+            const vehicle = new NPCVehicle(
+                this.scene,
+                this.roadNetwork,
+                this.trafficManager,
+                this.isNightMode
+            );
 
-            const car = this.createCar(carColors[i % carColors.length]);
-            car.position.set(x, 0, z);
-            car.rotation.y = angle + Math.PI / 2;
-
-            // Store movement data
-            car.userData = {
-                type: 'car',
-                angle: angle,
-                radius: radius,
-                speed: 0.2 + Math.random() * 0.3,
-                direction: Math.random() > 0.5 ? 1 : -1
-            };
-
-            this.scene.add(car);
-            this.cars.push(car);
-        }
-
-        // Cars on straight roads
-        for (let i = 0; i < 4; i++) {
-            const car = this.createCar(carColors[(i + 2) % carColors.length]);
-
-            if (i < 2) {
-                // Horizontal road
-                car.position.set(-30 + i * 60, 0, 0);
-                car.rotation.y = i === 0 ? 0 : Math.PI;
-                car.userData = {
-                    type: 'car',
-                    axis: 'x',
-                    speed: 0.3 + Math.random() * 0.2,
-                    direction: i === 0 ? 1 : -1,
-                    min: -40,
-                    max: 40
-                };
+            // Get a spawn point from road network or use default positions
+            let x, z, heading;
+            if (this.roadNetwork) {
+                const spawnData = this.roadNetwork.getRandomSpawnPoint();
+                x = spawnData.position.x;
+                z = spawnData.position.z;
+                // Calculate heading based on lane direction
+                heading = spawnData.direction > 0 ? 0 : Math.PI;
             } else {
-                // Vertical road
-                car.position.set(0, 0, -20 + (i - 2) * 40);
-                car.rotation.y = i === 2 ? Math.PI / 2 : -Math.PI / 2;
-                car.userData = {
-                    type: 'car',
-                    axis: 'z',
-                    speed: 0.25 + Math.random() * 0.2,
-                    direction: i === 2 ? 1 : -1,
-                    min: -35,
-                    max: 35
-                };
+                // Fallback for no road network - circular road
+                const angle = (i / numVehicles) * Math.PI * 2;
+                const radius = 40;
+                x = Math.cos(angle) * radius;
+                z = Math.sin(angle) * radius;
+                heading = angle + Math.PI / 2;
             }
 
-            this.scene.add(car);
-            this.cars.push(car);
+            vehicle.spawn(x, z, heading);
+            this.vehicles.push(vehicle);
         }
-    }
-
-    createCar(color) {
-        const car = new THREE.Group();
-
-        // Car body
-        const bodyGeometry = new THREE.BoxGeometry(1.8, 0.5, 0.9);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: color,
-            metalness: 0.6,
-            roughness: 0.4
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.4;
-        body.castShadow = true;
-        car.add(body);
-
-        // Car cabin
-        const cabinGeometry = new THREE.BoxGeometry(1, 0.4, 0.8);
-        const cabinMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            metalness: 0.8,
-            roughness: 0.2
-        });
-        const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-        cabin.position.set(-0.1, 0.75, 0);
-        cabin.castShadow = true;
-        car.add(cabin);
-
-        // Windows
-        const windowMaterial = new THREE.MeshStandardMaterial({
-            color: 0x87ceeb,
-            metalness: 0.9,
-            roughness: 0.1,
-            transparent: true,
-            opacity: 0.7
-        });
-
-        const windowGeometry = new THREE.PlaneGeometry(0.35, 0.3);
-        const frontWindow = new THREE.Mesh(windowGeometry, windowMaterial);
-        frontWindow.position.set(0.4, 0.75, 0);
-        frontWindow.rotation.y = Math.PI / 2;
-        car.add(frontWindow);
-
-        // Wheels
-        const wheelGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16);
-        const wheelMaterial = new THREE.MeshStandardMaterial({
-            color: 0x1a1a1a,
-            roughness: 0.9
-        });
-
-        const wheelPositions = [
-            { x: 0.5, z: 0.4 },
-            { x: 0.5, z: -0.4 },
-            { x: -0.5, z: 0.4 },
-            { x: -0.5, z: -0.4 }
-        ];
-
-        wheelPositions.forEach(pos => {
-            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            wheel.rotation.x = Math.PI / 2;
-            wheel.position.set(pos.x, 0.15, pos.z);
-            wheel.castShadow = true;
-            car.add(wheel);
-        });
-
-        // Headlights
-        if (this.isNightMode) {
-            const headlightGeometry = new THREE.SphereGeometry(0.08, 8, 8);
-            const headlightMaterial = new THREE.MeshStandardMaterial({
-                color: 0xffffcc,
-                emissive: 0xffffcc,
-                emissiveIntensity: 1
-            });
-
-            const headlight1 = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            headlight1.position.set(0.9, 0.4, 0.3);
-            car.add(headlight1);
-
-            const headlight2 = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            headlight2.position.set(0.9, 0.4, -0.3);
-            car.add(headlight2);
-
-            // Add point lights for headlights at night
-            const light = new THREE.PointLight(0xffffcc, 0.5, 10);
-            light.position.set(1.2, 0.4, 0);
-            car.add(light);
-        }
-
-        // Taillights
-        const taillightGeometry = new THREE.BoxGeometry(0.05, 0.1, 0.15);
-        const taillightMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
-            emissiveIntensity: this.isNightMode ? 0.8 : 0.3
-        });
-
-        const taillight1 = new THREE.Mesh(taillightGeometry, taillightMaterial);
-        taillight1.position.set(-0.92, 0.4, 0.3);
-        car.add(taillight1);
-
-        const taillight2 = new THREE.Mesh(taillightGeometry, taillightMaterial);
-        taillight2.position.set(-0.92, 0.4, -0.3);
-        car.add(taillight2);
-
-        return car;
     }
 
     createDetailedPedestrians() {
-        const pedestrianPositions = [
-            { x: 15, z: 15, gender: 'male' },
-            { x: -15, z: 15, gender: 'female' },
-            { x: 15, z: -15, gender: 'female' },
-            { x: -15, z: -15, gender: 'male' },
-            { x: 50, z: 50, gender: 'male' },
-            { x: -50, z: 50, gender: 'female' },
-            { x: 50, z: -50, gender: 'male' },
-            { x: -50, z: -50, gender: 'female' },
-            { x: 25, z: 0, gender: 'male' },
-            { x: -25, z: 0, gender: 'female' },
-            { x: 0, z: 25, gender: 'female' },
-            { x: 0, z: -25, gender: 'male' },
-            { x: 30, z: 30, gender: 'female' },
-            { x: -30, z: 30, gender: 'male' },
-            { x: 30, z: -30, gender: 'male' },
-            { x: -30, z: -30, gender: 'female' }
-        ];
+        // Generate pedestrian positions based on city layout
+        let pedestrianPositions;
+
+        if (this.roadNetwork) {
+            // Place pedestrians along sidewalks in the city
+            pedestrianPositions = this.generateCityPedestrianPositions();
+        } else {
+            // Fallback positions
+            pedestrianPositions = [
+                { x: 15, z: 15, gender: 'male' },
+                { x: -15, z: 15, gender: 'female' },
+                { x: 15, z: -15, gender: 'female' },
+                { x: -15, z: -15, gender: 'male' },
+                { x: 50, z: 50, gender: 'male' },
+                { x: -50, z: 50, gender: 'female' },
+                { x: 50, z: -50, gender: 'male' },
+                { x: -50, z: -50, gender: 'female' }
+            ];
+        }
 
         const skinColors = [0xffdbac, 0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524];
 
@@ -230,7 +103,12 @@ export class NPCManager {
                 leftLeg: pedestrian.getObjectByName('leftLeg'),
                 rightLeg: pedestrian.getObjectByName('rightLeg'),
                 leftArm: pedestrian.getObjectByName('leftArm'),
-                rightArm: pedestrian.getObjectByName('rightArm')
+                rightArm: pedestrian.getObjectByName('rightArm'),
+                // Collision/reaction state
+                isScared: false,
+                scaredTimer: 0,
+                dodgeDirection: new THREE.Vector3(),
+                originalY: 0
             };
 
             this.scene.add(pedestrian);
@@ -238,15 +116,65 @@ export class NPCManager {
         });
     }
 
+    generateCityPedestrianPositions() {
+        const positions = [];
+        const genders = ['male', 'female'];
+
+        // Place pedestrians near intersections (on sidewalks)
+        if (this.roadNetwork) {
+            const intersections = this.roadNetwork.getIntersections();
+            intersections.forEach((intersection, i) => {
+                // Place 2 pedestrians near each intersection on the sidewalks
+                const offsets = [
+                    { x: 8, z: 8 },
+                    { x: -8, z: -8 }
+                ];
+
+                offsets.forEach((offset, j) => {
+                    positions.push({
+                        x: intersection.x + offset.x,
+                        z: intersection.z + offset.z,
+                        gender: genders[(i + j) % 2]
+                    });
+                });
+            });
+        }
+
+        // Add some pedestrians in building areas
+        const buildingAreaPositions = [
+            { x: 40, z: 40 },
+            { x: -40, z: 40 },
+            { x: 40, z: -40 },
+            { x: -40, z: -40 },
+            { x: 80, z: 0 },
+            { x: -80, z: 0 },
+            { x: 0, z: 80 },
+            { x: 0, z: -80 },
+            { x: 60, z: 60 },
+            { x: -60, z: 60 },
+            { x: 60, z: -60 },
+            { x: -60, z: -60 }
+        ];
+
+        buildingAreaPositions.forEach((pos, i) => {
+            positions.push({
+                x: pos.x + (Math.random() - 0.5) * 10,
+                z: pos.z + (Math.random() - 0.5) * 10,
+                gender: genders[i % 2]
+            });
+        });
+
+        return positions;
+    }
+
     // Male pedestrian in corporate clothes (shirt, pants, tie)
     createMalePedestrian(skinColor) {
         const pedestrian = new THREE.Group();
-        pedestrian.scale.set(1.2, 1.2, 1.2); // Make them bigger and more visible
+        pedestrian.scale.set(1.2, 1.2, 1.2);
 
-        // Corporate shirt colors
         const shirtColors = [0xffffff, 0xe6f2ff, 0xf5f5dc, 0xd3e4f5];
         const shirtColor = shirtColors[Math.floor(Math.random() * shirtColors.length)];
-        const pantsColor = 0x2c3e50; // Dark formal pants
+        const pantsColor = 0x2c3e50;
         const tieColors = [0x8b0000, 0x000080, 0x2f4f4f, 0x4a0080];
         const tieColor = tieColors[Math.floor(Math.random() * tieColors.length)];
 
@@ -361,15 +289,14 @@ export class NPCManager {
     // Female pedestrian in casual clothes (t-shirt and shorts)
     createFemalePedestrian(skinColor) {
         const pedestrian = new THREE.Group();
-        pedestrian.scale.set(1.1, 1.1, 1.1); // Slightly smaller than male
+        pedestrian.scale.set(1.1, 1.1, 1.1);
 
-        // Casual t-shirt colors
         const tshirtColors = [0xff6b9d, 0x87ceeb, 0xffd700, 0x98fb98, 0xffb6c1, 0xe6e6fa];
         const tshirtColor = tshirtColors[Math.floor(Math.random() * tshirtColors.length)];
         const shortsColors = [0x4169e1, 0x2f4f4f, 0x8b4513, 0xffffff];
         const shortsColor = shortsColors[Math.floor(Math.random() * shortsColors.length)];
 
-        // Torso (t-shirt) - slightly different shape
+        // Torso (t-shirt)
         const torsoGeometry = new THREE.CylinderGeometry(0.16, 0.18, 0.45, 8);
         const torsoMaterial = new THREE.MeshStandardMaterial({ color: tshirtColor, roughness: 0.8 });
         const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
@@ -402,7 +329,7 @@ export class NPCManager {
         hairBack.position.set(0, 0.95, -0.08);
         pedestrian.add(hairBack);
 
-        // Hair sides (ponytail effect)
+        // Hair sides
         const hairSideGeometry = new THREE.SphereGeometry(0.05, 8, 8);
         const hairLeft = new THREE.Mesh(hairSideGeometry, hairMaterial);
         hairLeft.position.set(0.12, 1.1, 0);
@@ -421,7 +348,7 @@ export class NPCManager {
         rightEye.position.set(-0.045, 1.17, 0.11);
         pedestrian.add(rightEye);
 
-        // Shorts (short legs showing skin)
+        // Shorts
         const shortsGeometry = new THREE.CylinderGeometry(0.08, 0.07, 0.18, 8);
         const shortsMaterial = new THREE.MeshStandardMaterial({ color: shortsColor, roughness: 0.7 });
 
@@ -490,98 +417,188 @@ export class NPCManager {
         return pedestrian;
     }
 
-    // Check if two cars are colliding
-    checkCarCollision(car1, car2) {
-        const dx = car1.position.x - car2.position.x;
-        const dz = car1.position.z - car2.position.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        return distance < this.carCollisionRadius;
-    }
-
     update(delta) {
-        // Update cars with collision detection
-        this.cars.forEach((car, index) => {
-            const data = car.userData;
-
-            // Store previous position for collision response
-            const prevX = car.position.x;
-            const prevZ = car.position.z;
-
-            if (data.radius) {
-                // Circular road movement
-                data.angle += data.speed * delta * data.direction;
-                car.position.x = Math.cos(data.angle) * data.radius;
-                car.position.z = Math.sin(data.angle) * data.radius;
-                car.rotation.y = data.angle + Math.PI / 2 * data.direction;
-            } else if (data.axis) {
-                // Straight road movement
-                if (data.axis === 'x') {
-                    car.position.x += data.speed * data.direction * delta * 20;
-                    if (car.position.x > data.max || car.position.x < data.min) {
-                        data.direction *= -1;
-                        car.rotation.y += Math.PI;
-                    }
-                } else {
-                    car.position.z += data.speed * data.direction * delta * 20;
-                    if (car.position.z > data.max || car.position.z < data.min) {
-                        data.direction *= -1;
-                        car.rotation.y += Math.PI;
-                    }
-                }
-            }
-
-            // Check collision with other cars
-            for (let j = index + 1; j < this.cars.length; j++) {
-                const otherCar = this.cars[j];
-                if (this.checkCarCollision(car, otherCar)) {
-                    // Collision detected - reverse direction for both cars
-                    data.direction *= -1;
-                    otherCar.userData.direction *= -1;
-
-                    // Push cars apart
-                    car.position.x = prevX;
-                    car.position.z = prevZ;
-
-                    // Update rotation for straight road cars
-                    if (data.axis) {
-                        car.rotation.y += Math.PI;
-                    }
-                    if (otherCar.userData.axis) {
-                        otherCar.rotation.y += Math.PI;
-                    }
-                }
-            }
+        // Update NPC vehicles with intelligent AI
+        this.vehicles.forEach(vehicle => {
+            vehicle.update(delta, this.vehicles);
         });
 
-        // Update pedestrians with walking animation
+        // Update pedestrians with walking animation and vehicle collision detection
         this.pedestrians.forEach(ped => {
             const data = ped.userData;
 
-            // Walk in a small circle
-            data.angle += data.walkSpeed * delta;
-            ped.position.x = data.startX + Math.cos(data.angle) * data.walkRadius;
-            ped.position.z = data.startZ + Math.sin(data.angle) * data.walkRadius;
-            ped.rotation.y = data.angle + Math.PI / 2;
+            // Check for nearby vehicles (player and NPCs)
+            const nearbyVehicle = this.checkNearbyVehicles(ped.position);
 
-            // Walking animation phase
-            data.bobPhase += delta * 8;
+            if (nearbyVehicle) {
+                // Vehicle is too close! Trigger scared/dodge behavior
+                if (!data.isScared) {
+                    data.isScared = true;
+                    data.scaredTimer = 2.0; // Stay scared for 2 seconds
 
-            // Bobbing animation (up and down)
-            ped.position.y = Math.abs(Math.sin(data.bobPhase)) * 0.05;
+                    // Calculate dodge direction (perpendicular to vehicle direction)
+                    const toVehicle = new THREE.Vector3(
+                        nearbyVehicle.x - ped.position.x,
+                        0,
+                        nearbyVehicle.z - ped.position.z
+                    ).normalize();
 
-            // Animate legs if they exist
-            if (data.leftLeg && data.rightLeg) {
-                const legSwing = Math.sin(data.bobPhase) * 0.4;
-                data.leftLeg.rotation.x = legSwing;
-                data.rightLeg.rotation.x = -legSwing;
+                    // Dodge perpendicular to vehicle approach (left or right randomly)
+                    const dodgeSide = Math.random() > 0.5 ? 1 : -1;
+                    data.dodgeDirection.set(
+                        -toVehicle.z * dodgeSide,
+                        0,
+                        toVehicle.x * dodgeSide
+                    );
+
+                    // Update start position to current position after dodge
+                    data.startX = ped.position.x + data.dodgeDirection.x * 3;
+                    data.startZ = ped.position.z + data.dodgeDirection.z * 3;
+                }
             }
 
-            // Animate arms if they exist
-            if (data.leftArm && data.rightArm) {
-                const armSwing = Math.sin(data.bobPhase) * 0.3;
-                data.leftArm.rotation.x = -armSwing;
-                data.rightArm.rotation.x = armSwing;
+            if (data.isScared) {
+                // Scared behavior: jump to the side and cower
+                data.scaredTimer -= delta;
+
+                // Quick dodge movement
+                if (data.scaredTimer > 1.5) {
+                    // Jump animation - move quickly and hop
+                    const jumpProgress = (2.0 - data.scaredTimer) / 0.5;
+                    ped.position.x += data.dodgeDirection.x * delta * 8;
+                    ped.position.z += data.dodgeDirection.z * delta * 8;
+
+                    // Jump arc
+                    ped.position.y = Math.sin(jumpProgress * Math.PI) * 0.5;
+
+                    // Face away from danger
+                    ped.rotation.y = Math.atan2(data.dodgeDirection.x, data.dodgeDirection.z);
+                } else {
+                    // Cowering animation - crouch down
+                    ped.position.y = 0;
+                    ped.scale.y = 0.8; // Crouch
+
+                    // Arms up in defensive position
+                    if (data.leftArm && data.rightArm) {
+                        data.leftArm.rotation.x = -1.2;
+                        data.leftArm.rotation.z = 0.5;
+                        data.rightArm.rotation.x = -1.2;
+                        data.rightArm.rotation.z = -0.5;
+                    }
+                }
+
+                // Recovery
+                if (data.scaredTimer <= 0) {
+                    data.isScared = false;
+                    ped.scale.y = data.gender === 'male' ? 1.2 : 1.1; // Restore original scale
+                }
+            } else {
+                // Normal walking behavior
+
+                // Walk in a small circle
+                data.angle += data.walkSpeed * delta;
+                ped.position.x = data.startX + Math.cos(data.angle) * data.walkRadius;
+                ped.position.z = data.startZ + Math.sin(data.angle) * data.walkRadius;
+                ped.rotation.y = data.angle + Math.PI / 2;
+
+                // Walking animation phase
+                data.bobPhase += delta * 8;
+
+                // Bobbing animation (up and down)
+                ped.position.y = Math.abs(Math.sin(data.bobPhase)) * 0.05;
+
+                // Animate legs if they exist
+                if (data.leftLeg && data.rightLeg) {
+                    const legSwing = Math.sin(data.bobPhase) * 0.4;
+                    data.leftLeg.rotation.x = legSwing;
+                    data.rightLeg.rotation.x = -legSwing;
+                }
+
+                // Animate arms if they exist
+                if (data.leftArm && data.rightArm) {
+                    const armSwing = Math.sin(data.bobPhase) * 0.3;
+                    data.leftArm.rotation.x = -armSwing;
+                    data.rightArm.rotation.x = armSwing;
+                }
             }
         });
+    }
+
+    /**
+     * Check if any vehicle is within danger distance of the pedestrian
+     * @param {THREE.Vector3} pedPosition - Pedestrian position
+     * @returns {Object|null} - Nearest vehicle position or null if none nearby
+     */
+    checkNearbyVehicles(pedPosition) {
+        const dangerDistance = 4; // Distance at which pedestrian should react
+        let nearestVehicle = null;
+        let nearestDist = dangerDistance;
+
+        // Check player vehicle
+        if (this.playerVehicle) {
+            const playerPos = this.playerVehicle.getPosition();
+            const playerSpeed = Math.abs(this.playerVehicle.getSpeed());
+
+            // Only react if vehicle is moving
+            if (playerSpeed > 5) {
+                const dx = playerPos.x - pedPosition.x;
+                const dz = playerPos.z - pedPosition.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                // Adjust danger distance based on speed
+                const adjustedDanger = dangerDistance + playerSpeed * 0.05;
+
+                if (dist < adjustedDanger && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestVehicle = { x: playerPos.x, z: playerPos.z };
+                }
+            }
+        }
+
+        // Check NPC vehicles
+        this.vehicles.forEach(vehicle => {
+            if (vehicle.speed > 3) {
+                const dx = vehicle.position.x - pedPosition.x;
+                const dz = vehicle.position.z - pedPosition.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+
+                const adjustedDanger = dangerDistance + vehicle.speed * 0.05;
+
+                if (dist < adjustedDanger && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestVehicle = { x: vehicle.position.x, z: vehicle.position.z };
+                }
+            }
+        });
+
+        return nearestVehicle;
+    }
+
+    getVehicles() {
+        return this.vehicles;
+    }
+
+    destroy() {
+        // Clean up vehicles
+        this.vehicles.forEach(vehicle => {
+            vehicle.destroy();
+        });
+        this.vehicles = [];
+
+        // Clean up pedestrians
+        this.pedestrians.forEach(ped => {
+            this.scene.remove(ped);
+            ped.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.pedestrians = [];
     }
 }

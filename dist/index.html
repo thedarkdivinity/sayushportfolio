@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sayush Kamat - Software Engineer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/sayushportfolio/motorcycle-icon.svg">
+  <script type="module" crossorigin src="/sayushportfolio/assets/index-DMb-Nbal.js"></script>
+  <link rel="stylesheet" crossorigin href="/sayushportfolio/assets/index-_DhBU6lF.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-title">Sayush Kamat</div>
+            <div class="loading-subtitle">Software Engineer</div>
+            <div class="loading-bar-container">
+                <div class="loading-bar"></div>
+            </div>
+            <div class="loading-text">Loading world...</div>
+        </div>
+    </div>
+
+    <!-- Main Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <!-- Header -->
+        <header id="header">
+            <div class="logo">
+                <span class="logo-text">SK</span>
+            </div>
+            <nav class="nav-buttons">
+                <button class="nav-btn" data-section="home" title="Home">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                </button>
+                <button class="nav-btn" data-section="about" title="About">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                </button>
+                <button class="nav-btn" data-section="projects" title="Projects">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>
+                </button>
+                <button class="nav-btn" data-section="contact" title="Contact">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                </button>
+                <button class="nav-btn" data-section="controls" title="Controls">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15 7.5V2H9v5.5l3 3 3-3zM7.5 9H2v6h5.5l3-3-3-3zM9 16.5V22h6v-5.5l-3-3-3 3zM16.5 9l-3 3 3 3H22V9h-5.5z"/></svg>
+                </button>
+                <button class="nav-btn" data-section="options" title="Options">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                </button>
+            </nav>
+            <button id="sound-toggle" class="sound-btn" title="Toggle Sound">
+                <svg class="sound-on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg class="sound-off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            </button>
+        </header>
+
+        <!-- Sections -->
+        <section id="home-section" class="content-section active">
+            <div class="section-content">
+                <h1 class="big-title">Sayush Kamat</h1>
+                <h2 class="subtitle">Software Engineer @ Telstra</h2>
+                <p class="description">
+                    Welcome to my interactive portfolio!<br>
+                    Drive the motorcycle around to explore.<br>
+                    Use <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> or <span class="key">Arrow Keys</span> to move.
+                </p>
+                <div class="scroll-hint">
+                    <span>Scroll to explore</span>
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                </div>
+            </div>
+        </section>
+
+        <section id="about-section" class="content-section">
+            <div class="section-content">
+                <h2 class="section-title">About Me</h2>
+                <div class="about-content">
+                    <p>
+                        I'm <strong>Sayush Kamat</strong>, a Software Engineer with <strong>3+ years</strong> of experience
+                        specializing in full-stack development. Currently working at <strong>Telstra</strong>,
+                        driving software development initiatives and delivering impactful solutions.
+                    </p>
+                    <p>
+                        B.Tech in Information Technology from <strong>VJTI Mumbai</strong> (2022).
+                        I've achieved a 98% reduction in project vulnerabilities and excel at building
+                        robust, scalable web applications. Based in Pune, India.
+                    </p>
+                    <div class="skills">
+                        <span class="skill-tag">ReactJS</span>
+                        <span class="skill-tag">VueJS</span>
+                        <span class="skill-tag">NodeJS</span>
+                        <span class="skill-tag">Spring Boot</span>
+                        <span class="skill-tag">JavaScript</span>
+                        <span class="skill-tag">C++</span>
+                        <span class="skill-tag">PostgreSQL</span>
+                        <span class="skill-tag">MongoDB</span>
+                        <span class="skill-tag">Express</span>
+                        <span class="skill-tag">NextJS</span>
+                        <span class="skill-tag">MaterialUI</span>
+                        <span class="skill-tag">Git</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects-section" class="content-section">
+            <div class="section-content">
+                <h2 class="section-title">Experience</h2>
+                <div class="projects-grid">
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+                        </div>
+                        <h3>Cloud Dashboard</h3>
+                        <p>ReactJS + MaterialUI dashboard with TMF API integration at Telstra</p>
+                    </div>
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 16l-4-4V8.82C14.16 8.4 15 7.3 15 6c0-1.66-1.34-3-3-3S9 4.34 9 6c0 1.3.84 2.4 2 2.82V12l-4 4H3v5h5v-3.05l4-4.2 4 4.2V21h5v-5h-4z"/></svg>
+                        </div>
+                        <h3>5G Slicing Workflows</h3>
+                        <p>Camunda BPMN workflows with SpringBoot API adaptors</p>
+                    </div>
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                        </div>
+                        <h3>Auth Modules</h3>
+                        <p>Azure EntraID integration with SAML authentication</p>
+                    </div>
+                    <div class="project-card">
+                        <div class="project-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                        </div>
+                        <h3>MERN Apps</h3>
+                        <p>Automobile & Motorsport apps with admin dashboards</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact-section" class="content-section">
+            <div class="section-content">
+                <h2 class="section-title">Contact</h2>
+                <div class="contact-content">
+                    <p>Want to work together? Get in touch!</p>
+                    <div class="social-links">
+                        <a href="https://github.com/thedarkdivinity" target="_blank" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                            GitHub
+                        </a>
+                        <a href="https://www.linkedin.com/in/sayush-kamat" target="_blank" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                            LinkedIn
+                        </a>
+                        <a href="mailto:kamatsayush@gmail.com" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                            Email
+                        </a>
+                        <a href="tel:+919082731989" class="social-link">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                            Phone
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="controls-section" class="content-section">
+            <div class="section-content">
+                <h2 class="section-title">Controls</h2>
+                <div class="controls-content">
+                    <div class="control-group">
+                        <h3>Keyboard</h3>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">W</span> / <span class="key">&#8593;</span>
+                            </div>
+                            <span>Accelerate</span>
+                        </div>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">S</span> / <span class="key">&#8595;</span>
+                            </div>
+                            <span>Brake / Reverse</span>
+                        </div>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">A</span> / <span class="key">&#8592;</span>
+                            </div>
+                            <span>Turn Left</span>
+                        </div>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">D</span> / <span class="key">&#8594;</span>
+                            </div>
+                            <span>Turn Right</span>
+                        </div>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">Space</span>
+                            </div>
+                            <span>Handbrake</span>
+                        </div>
+                        <div class="control-item">
+                            <div class="keys">
+                                <span class="key">R</span>
+                            </div>
+                            <span>Reset Position</span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <h3>Touch / Mobile</h3>
+                        <p>Use the on-screen joystick to control the motorcycle on mobile devices.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="options-section" class="content-section">
+            <div class="section-content">
+                <h2 class="section-title">Options</h2>
+                <div class="options-content">
+                    <div class="option-item">
+                        <label>Graphics Quality</label>
+                        <div class="option-buttons">
+                            <button class="option-btn" data-quality="low">Low</button>
+                            <button class="option-btn active" data-quality="medium">Medium</button>
+                            <button class="option-btn" data-quality="high">High</button>
+                        </div>
+                    </div>
+                    <div class="option-item">
+                        <label>Shadows</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="shadows-toggle" checked>
+                            <label for="shadows-toggle"></label>
+                        </div>
+                    </div>
+                    <div class="option-item">
+                        <label>Sound Effects</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="sfx-toggle" checked>
+                            <label for="sfx-toggle"></label>
+                        </div>
+                    </div>
+                    <div class="option-item">
+                        <label>Music</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="music-toggle" checked>
+                            <label for="music-toggle"></label>
+                        </div>
+                    </div>
+                    <div class="option-item">
+                        <label>Camera Shake</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="shake-toggle" checked>
+                            <label for="shake-toggle"></label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls">
+            <div id="joystick-container">
+                <div id="joystick">
+                    <div id="joystick-handle"></div>
+                </div>
+            </div>
+            <button id="mobile-brake" class="mobile-btn">BRAKE</button>
+        </div>
+
+        <!-- Speed Display -->
+        <div id="speed-display">
+            <div class="speed-value">0</div>
+            <div class="speed-unit">km/h</div>
+        </div>
+
+        <!-- Mini Map -->
+        <div id="mini-map">
+            <canvas id="minimap-canvas"></canvas>
+            <div id="player-marker"></div>
+        </div>
+    </div>
+
+</body>
+</html>
